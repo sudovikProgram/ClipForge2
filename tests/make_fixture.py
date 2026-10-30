@@ -3,10 +3,11 @@
 import subprocess, os
 
 os.makedirs("tests", exist_ok=True)
-# Псевдоречь: тон 300Гц, модулированный пульсами ~3 Гц (слова), с длинными тишинами
-am = ("sine=frequency=320:duration=180,"
-      "tremolo=f=3.1:d=0.95,"          # пульсация = «слова»
-      "volume='if(between(mod(t,18),2,14),1,0.02)':eval=frame")  # фразы по 12с с паузами 6с
+# Псевдоречь: тон 200Гц + вибрато (имитация F0) + пульсы ~3Гц («слова») + паузы фраз
+am = ("sine=frequency=200:duration=180,"
+      "vibrato=f=5.2:d=0.35,"
+      "tremolo=f=3.1:d=0.95,"
+      "volume='if(between(mod(t,18),2,14),1,0.02)':eval=frame")
 scenes = []
 for i in range(6):
     scenes.append(f"color=c={'0x%02x%02x%02x' % ((i*40)%256,(i*70)%256,(i*110)%256)}:"
@@ -25,7 +26,9 @@ for i in range(6):
 fc = "".join(f"[{2*i}:v][{2*i+1}:a]" for i in range(6))
 fc += f"concat=n=6:v=1:a=1[v][a]"
 # поверх — движущийся белый прямоугольник (имитация движения в кадре)
-fc2 = "[v]drawbox=x='mod(t*160,900)':y=200:w=300:h=300:color=white@0.85:t=fill,drawtext=text='TAKE %{eif\\:floor(t/30)+1\\:d}':x=40:y=40:fontsize=64:fontcolor=yellow:box=1[vout]"
+# Движущийся блок + счётчик кадров (гарантированно разный контент каждый кадр)
+fc2 = ("[v]drawbox=x='mod(t*160,900)':y=200:w=300:h=300:color=white@0.85:t=fill,"
+       "drawtext=text='%{n}':x=40:y=40:fontsize=64:fontcolor=yellow:box=1[vout]")
 cmd = ["ffmpeg","-y","-hide_banner","-loglevel","error"] + inputs + \
       ["-filter_complex", fc + ";" + fc2, "-map","[vout]","-map","[a]",
        "-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p",

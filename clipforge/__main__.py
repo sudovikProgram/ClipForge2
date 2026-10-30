@@ -51,7 +51,15 @@ def analyze_video(video: str, cfg: Config, workdir: str,
     # --- Транскрипция -------------------------------------------------------
     seg_path = cache / "segments.json"
     wav16 = os.path.join(workdir, "audio16.wav")
-    if use_cache and seg_path.exists() and not force:
+    ext_seg = os.environ.get("CLIPFORGE_SEGMENTS")  # готовый транскрипт (обход музыки/шума)
+    if ext_seg and Path(ext_seg).exists() and not force:
+        log.info("Загружаю внешний транскрипт: %s", ext_seg)
+        segments = load_segments(ext_seg)
+        shutil.copy2(ext_seg, seg_path)
+        cached_wav = cache / "audio16.wav"
+        if cached_wav.exists():
+            wav16 = str(cached_wav)
+    elif use_cache and seg_path.exists() and not force:
         log.info("Кэш: транскрипт загружен из %s", seg_path)
         segments = load_segments(str(seg_path))
         cached_wav = cache / "audio16.wav"

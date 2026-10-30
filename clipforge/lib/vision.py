@@ -25,12 +25,17 @@ log = logging.getLogger("clipforge")
 # -----------------------------------------------------------------------------
 # Сцены через ffmpeg scdet
 # -----------------------------------------------------------------------------
-def detect_scenes(video: str, threshold: float = 0.30, max_points: int = 4000,
+def detect_scenes(video: str, threshold: float = 15.0, max_points: int = 4000,
                   duration: float | None = None) -> list[float]:
-    """Точки смены сцен в секундах. Порог scdet: 0..1 (меньше — чувствительнее).
+    """Точки смены сцен в секундах через ffmpeg scdet.
+
+    scdet работает со шкалой метаданных YDIF ~0..255; типовые пороги 10..30
+    (меньше — чувствительнее). Значения 0..1 из старых конфигов автоматически
+    конвертируются в шкалу scdet (thr*100), чтобы обратная совместимость не ломалась.
 
     Примечание: -t ДО -i ограничивает чтение входа — быстро на многочасовых файлах.
     """
+    thr = threshold * 100.0 if 0 < threshold <= 1 else float(threshold)
     cmd = [
         os.environ.get("CLIPFORGE_FFMPEG", "ffmpeg"), "-hide_banner", "-loglevel", "info",
     ]
@@ -38,7 +43,7 @@ def detect_scenes(video: str, threshold: float = 0.30, max_points: int = 4000,
         cmd += ["-t", f"{duration:.2f}"]
     cmd += [
         "-i", video,
-        "-vf", f"scdet=threshold={threshold}", "-an", "-f", "null", "-",
+        "-vf", f"scdet=threshold={thr:.2f}", "-an", "-f", "null", "-",
     ]
     try:
         p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -48,9 +53,10 @@ def detect_scenes(video: str, threshold: float = 0.30, max_points: int = 4000,
         log.warning("scdet: таймаут — считаем видео одной сценой")
         return []
     # scdet печатает строки вида:
-    #   [scdet @ ..] lavfi.scd.score=..., pts_time:12.345
-    # или (старые версии): parsed scene change at ... pts_time:12.345
-    pts = [float(m) for m in re.findall(r"pts_time:([0-9.]+)", out)]
+    #   [scdet @ ..] lavfi.scd.score: 23.4, lavfi.scd.time: 30
+    # либо (другие сборки): ... pts_time:12.345
+    pts = [float(m) for m in re.findall(r"lavfi\.scd\.time:\s*([0-9.]+)", out)]
+    pts += [float(m) for m in re.findall(r"pts_time:([0-9.]+)", out)]
     pts = sorted(set(round(t, 2) for t in pts))
     if len(pts) > max_points:
         step = len(pts) // max_points + 1

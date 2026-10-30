@@ -1,8 +1,1 @@
-__pycache__/
-*.pyc
-venv/
-.venv/
-env/
-.idea/
-.vscode/
-*.log
+.clipforge_cache/

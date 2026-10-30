@@ -22,7 +22,7 @@ class Config:
     whisper_model: str = "small"          # tiny|base|small|medium|large-v3
     transcribe_device: str = "auto"       # auto|cpu|cuda
     language: str | None = None           # None = автоопределение
-    scene_threshold: float = 0.30         # порог scdet (0..1), ниже = больше сцен
+    scene_threshold: float = 15.0         # порог scdet (шкала YDIF ~0..255), ниже = больше сцен; 0..1 конвертируется автоматически
     max_clip_seconds: float = 58.0        # жёсткий лимит длительности шортса
     min_clip_seconds: float = 12.0        # минимум для осмысленного хука
     target_clip_seconds: float = 34.0     # целевая «идеальная» длина
